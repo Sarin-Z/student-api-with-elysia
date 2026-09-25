@@ -26,7 +26,11 @@ Open `.env` and set `DATABASE_URL` to your PostgreSQL connection string:
 
 ```env
 DATABASE_URL=postgres://user:password@host/database?sslmode=require
+BASIC_AUTH_USERNAME=admin
+BASIC_AUTH_PASSWORD=change-this-password
 ```
+
+Set a private username and password for write operations. Do not commit `.env`.
 
 Generate Prisma Client and synchronize the database schema:
 
@@ -65,6 +69,14 @@ All endpoints use the `/api/v1` version prefix.
 | POST | `/api/v1/students` | Create or replace a student |
 | PUT | `/api/v1/students/:studentId` | Update a student |
 | DELETE | `/api/v1/students/:studentId` | Delete a student |
+
+`GET` endpoints are public. `POST`, `PUT`, and `DELETE` require HTTP Basic Auth using the credentials in `.env`.
+
+Example request with Basic Auth:
+
+```bash
+curl -u admin:change-this-password -X DELETE http://localhost:3000/api/v1/students/67070183
+```
 
 ### Student request body
 

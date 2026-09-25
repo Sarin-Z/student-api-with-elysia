@@ -14,6 +14,45 @@ interface Student {
 }
 
 const prisma = new PrismaClient()
+const basicAuthUsername = Bun.env.BASIC_AUTH_USERNAME
+const basicAuthPassword = Bun.env.BASIC_AUTH_PASSWORD
+
+if (!basicAuthUsername || !basicAuthPassword) {
+  throw new Error('BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD must be set')
+}
+
+function requireBasicAuth({ request }: { request: Request }) {
+  const authorization = request.headers.get('authorization')
+
+  if (!authorization?.startsWith('Basic ')) {
+    return new Response(JSON.stringify({ message: 'Authentication required' }), {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': 'Basic realm="student-api"'
+      }
+    })
+  }
+
+  try {
+    const decodedCredentials = atob(authorization.slice(6))
+    const separatorIndex = decodedCredentials.indexOf(':')
+    const username = decodedCredentials.slice(0, separatorIndex)
+    const password = decodedCredentials.slice(separatorIndex + 1)
+
+    if (username !== basicAuthUsername || password !== basicAuthPassword) {
+      throw new Error('Invalid credentials')
+    }
+  } catch {
+    return new Response(JSON.stringify({ message: 'Invalid credentials' }), {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': 'Basic realm="student-api"'
+      }
+    })
+  }
+}
 
 function toStudent(student: {
   studentId: string
@@ -95,7 +134,7 @@ const app = new Elysia()
       })
 
       return toStudent(student)
-    }, { body: studentBody })
+    }, { body: studentBody, beforeHandle: requireBasicAuth })
     .put('/students/:studentId', async ({ params: { studentId }, body, error }) => {
       const existingStudent = await prisma.student.findUnique({
         where: { studentId }
@@ -114,7 +153,7 @@ const app = new Elysia()
       })
 
       return toStudent(student)
-    }, { body: studentUpdateBody })
+    }, { body: studentUpdateBody, beforeHandle: requireBasicAuth })
     .delete('/students/:studentId', async ({ params: { studentId }, error }) => {
       const existingStudent = await prisma.student.findUnique({
         where: { studentId }
@@ -127,7 +166,7 @@ const app = new Elysia()
       })
 
       return { message: 'Student deleted successfully' }
-    })
+    }, { beforeHandle: requireBasicAuth })
   
   )
 
